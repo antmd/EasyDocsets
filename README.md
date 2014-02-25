@@ -13,6 +13,8 @@ Only tested with Objective-C.
         -d <name>     The company id in the format 'com.dervishsoftware'
         -t appledoc|doxygen  The output type (default = appledoc)
         -h            Display this message
+        -a            Turn on TomDoc conversion (e.g. for ReactiveCocoa). This can sometimes help for code that
+                      hasn't been commented with special Documentation comments (/** */, ///, etc.)
 
 
 ### Appledoc
@@ -29,8 +31,19 @@ This will install the docset in `~/Library/Developer/Shared/Documentation/DocSet
 
 ### Doxygen
 
-Doxygen output generates a folder 'html' in ~/Downloads
+Doxygen output is customised by changing the 'DocSet.Doxygen' file in the 'doxygen-templates' sub-directory.
 
 The doxygen output draws nice inheritance and collaboration diagrams.
 
-Doxygen is supposed to be able to generate Apple DocSets, too, but I couldn't get it to work properly. I think it's a known issue.
+Running doxygen usually takes a log longer than AppleDoc, but it draws some useful relationship / inheritance pictures.
+
+Output will be installed as a DocSet
+
+### Example
+
+To generate the ReactiveCocoa DocSet using appledoc:
+
+    cd ReactiveCocoa
+    generate_docs.sh -s ReactiveCocoaFramework/ReactiveCocoa -c "GitHub" -d com.github -a -t appledoc
+
+

@@ -3,9 +3,39 @@
 # Generate and install docset for a framework
 
 set -o nounset                              # Treat unset variables as an error
-pushd $(dirname $0) 2>&1 >/dev/null
-SCRIPT_PATH=$(pwd -P .)
-popd 2>&1 >/dev/null
+
+path_resolving_symlinks()
+{ (
+    local _File="$@"; local _FileDir; local _NextDir; local _Link; local _LoopCount=0
+
+    until false; do
+        _FileDir=$(dirname "$_File")
+        cd -P "$_FileDir" || return 1
+        _File=$(basename "$_File")
+        _Link=$(readlink "$_File") || break
+        if [[ "$_Link" = "$_File" || $(( _LoopCount++ )) -gt 100 ]]; then
+            return 1 # Recursive Link
+        fi
+        _File="$_Link"
+    done
+    _File=$(pwd -P)/$(basename "$_File")
+    [ -e "$_File" ] || return 1
+    if [[ -d "$_File" ]] && pushd "$_File" >/dev/null ; then
+        _File=$(pwd -P)
+    fi
+    echo "$_File"
+) }
+
+
+ScriptDir=$(dirname $(path_resolving_symlinks "$0") )
+
+if [[ -d "${HOME}/Library/Caches" ]]; then
+    BaseTempDir="${HOME}/Library/Caches"
+else
+    BaseTempDir=/tmp
+fi
+TempDir=`mktemp -d ${BaseTempDir}/GenerateDocs.XXXXXX` || exit 1
+
 DOXYGEN=/usr/local/bin/doxygen
 APPLEDOC=/usr/local/bin/appledoc
 
@@ -13,35 +43,43 @@ function usage ()
 {
 	cat <<- EOT
 
-  Usage :  ${0##/*/} -s <dir> -x <path> -f <name> -c <name> -d <name>
+  Usage :  $(basename $0) -s <dir> -x <path> -f <name> -c <name> -d <name>
 
   Options: 
   -s <dir>      The directory containing the source header files
+  -o <dir>      Output directory -- if supplied, generated files will be preserved, otherwise
+                the generated files are deleted after the docset is installed
   -x <path>     The path to the index page
-  -f <name>     The name of the framework (appears on doc pages)
+  -f <name>     The name of the framework (appears on doc pages) (default = basename of source)
   -c <name>     The company/organisation name
   -d <name>     The company id in the format 'com.dervishsoftware'
+  -b <path>     Path to 'dot' for doxygen (default = dot binary found in path), or 'none' for no graphs
+  -a            Turn on TomDoc conversion of the source
   -t appledoc|doxygen  The output type (default = appledoc)
   -h            Display this message
-	EOT
+EOT
 }    # ----------  end of function usage  ----------
 
 #-----------------------------------------------------------------------
 #  Handle command line arguments
 #-----------------------------------------------------------------------
-FRAMEWORK_SOURCE=
+InputSourceDir=
 INDEX_PATH=
 FRAMEWORK=
 COMPANY=
 COMPANY_ID=
 OUTPUT_TYPE=appledoc
+DOT_PATH=
+CONVERT_TOMDOC=
+OUTPUT_DIR=
 
-while getopts ":hvs:x:f:c:d:t:" opt
+while getopts ":hvs:x:f:c:d:t:b:ao:" opt
 do
     case $opt in
 
+        a ) CONVERT_TOMDOC=1 ;;
         s ) 
-            FRAMEWORK_SOURCE=$OPTARG 
+            InputSourceDir=$OPTARG 
             ;;
         x ) 
             INDEX_PATH=$OPTARG 
@@ -52,12 +90,15 @@ do
         c ) 
             COMPANY=$OPTARG 
             ;;
+        b )
+            DOT_PATH=$OPTARG ;;
         d ) 
             COMPANY_ID=$OPTARG
             ;;
         t ) 
             OUTPUT_TYPE=$OPTARG
             ;;
+        o ) OUTPUT_DIR=$OPTARG ;;
         h ) 
             usage
             exit 0   
@@ -72,14 +113,34 @@ esac    # --- end of case ---
 done
 shift $(($OPTIND-1))
 
-if [[ -z "${FRAMEWORK_SOURCE}" || -z "${FRAMEWORK}" || -z "${COMPANY}" || -z "${COMPANY_ID}" ]]; then
-    echo "Missing parameters."
+if [[ -z "${InputSourceDir}" || -z "${COMPANY}" || -z "${COMPANY_ID}" ]]; then
+    echo "Missing parameters. Must supply -s, -c, and -d"
     usage
     exit 1
 fi
-pushd "${FRAMEWORK_SOURCE}" 2>&1 >/dev/null
-FRAMEWORK_SOURCE=$(pwd -P .)
-popd 2>&1 >/dev/null
+if [[ -z "$FRAMEWORK" ]]; then
+    FRAMEWORK=$(basename "$InputSourceDir")
+fi
+if [[ ! -z "$OUTPUT_DIR" ]]; then
+    if [[ ! -d "$OUTPUT_DIR" ]]; then
+        if ! mkdir -p "$OUTPUT_DIR"; then
+            echo "Could not create output directory '$OUTPUT_DIR'" >&2
+            exit 1
+        fi
+    fi
+else
+    OUTPUT_DIR=${TempDir}/doc
+    mkdir $OUTPUT_DIR
+fi
+
+GeneratedHeadersDir="${TempDir}/headers"
+mkdir -p "${GeneratedHeadersDir}"
+
+InputSourceDir=$(path_resolving_symlinks "$InputSourceDir")
+if [[ $? -ne 0 ]]; then
+    echo "Could not find source directory ${InputSourceDir}" >&2
+    exit 1
+fi
 
 if [[ "${OUTPUT_TYPE}" != "appledoc" && "${OUTPUT_TYPE}" != "doxygen" ]]; then
     echo "Output type must be 'appledoc' or 'doxygen'"
@@ -94,31 +155,36 @@ PUBLISH_OPTION=
 
 DOCSET_NAME=${COMPANY_ID}.${FRAMEWORK}.docset
 DOCSET_FEED_URL=http://www.dervishsoftware/docsets
-if [[ -d "${HOME}/Library/Caches" ]]; then
-    BASE_TEMP_DIR="${HOME}/Library/Caches"
-else
-    BASE_TEMP_DIR=/tmp
+INDEX_FILE=
+
+
+#===============================================================================
+# Convert TomDoc, if required
+#===============================================================================
+
+if [[ ! -z "$CONVERT_TOMDOC" ]]; then
+    if [[ -z "$TempDir" ]]; then
+        TempDir=`mktemp -d ${BaseTempDir}/GenerateDocs.XXXXXX` || exit 1
+    fi
+
+    if [[ ! -z "${INDEX_PATH}" ]]; then
+        if ! cp ${INDEX_PATH} ${TempDir}; then
+            echo "Could not find index file '${INDEX_PATH}'" >&2
+            exit 2
+        fi
+        INDEX_FILE="../$(basename "${INDEX_PATH}")"
+    fi
+
+    echo "Converting TomDoc headers in ${InputSourceDir}..."
+    "${ScriptDir}/tomdoc_converter_objc.py" "--${OUTPUT_TYPE}" -o "${GeneratedHeadersDir}" "${InputSourceDir}"
+    InputSourceDir="$GeneratedHeadersDir"
 fi
-TEMP_DIR=`mktemp -d ${BASE_TEMP_DIR}/GenerateDocs.XXXXXX` || exit 1
-GENERATION_DIR="${TEMP_DIR}/headers"
-OUTPUT_DIR="${TEMP_DIR}/${OUTPUT_TYPE}"
 
-if ! cp ${INDEX_PATH} ${TEMP_DIR}; then
-    echo "Could not find index file '${INDEX_PATH}'" >&2
-    exit 2
-fi
-INDEX_FILE=$(basename "${INDEX_PATH}")
 
-mkdir -p "${GENERATION_DIR}"
+#===============================================================================
+# Generate documentation
+#===============================================================================
 
-# cd to generation dir
-if ! cd "${GENERATION_DIR}"; then
-    echo "Could not create directory '${GENERATION_DIR}'" >&2
-    exit 2
-fi
-
-echo "Converting TomDoc headers in ${FRAMEWORK_SOURCE}..."
-"${SCRIPT_PATH}/tomdoc_converter_objc.py" "--${OUTPUT_TYPE}" -o "${GENERATION_DIR}" "${FRAMEWORK_SOURCE}"
 
 if [[ "${OUTPUT_TYPE}" = "appledoc" ]]; then
     # As of 31 August, 2013, these extra flags to appledoc are only supported in the version of
@@ -157,30 +223,59 @@ if [[ "${OUTPUT_TYPE}" = "appledoc" ]]; then
         --ignore "*.m" \
         --ignore "*Deprecated*" \
         ${APPLEDOC_EXTRA_FLAGS} \
-        --index-desc "../${INDEX_FILE}" \
+        --index-desc "${INDEX_FILE}" \
         --verbose $VERBOSITY \
-        "${GENERATION_DIR}"
+        "${InputSourceDir}"
 else # Doxygen
+    DOXYGEN_TEMPLATES_DIR="${ScriptDir}/doxygen-templates"
+    HAVE_DOT=YES
+    if [[ "$DOT_PATH" = "none" ]]; then
+        HAVE_DOT=NO
+    elif [[ -z "$DOT_PATH" ]]; then
+        DOT_PATH=$(type -P dot)
+        if [[ $? -ne 0 ]]; then
+            echo "Cannot find 'dot' in PATH." >&2
+            echo "Use -b none as an argument to turn off dot." >&2
+            exit 1
+        fi
+    elif [[ ! -e "$DOT_PATH" ]]; then
+        echo "Cannot find 'dot' at $DOT_PATH." >&2
+        exit 1
+    fi
+    export DOT_PATH
+    export HAVE_DOT
+    export INPUT_DIR="\"${InputSourceDir}\" \"${GeneratedHeadersDir}\""
+    export HTML_HEADER=
     export DOCSET_PUBLISHER_ID="${COMPANY_ID}"
     export DOCSET_PUBLISHER="${COMPANY}"
     export DOCSET_BUNDLE_ID="${COMPANY_ID}.${FRAMEWORK}"
     export FRAMEWORK
-    export OUTPUT_DIRECTORY=~/Downloads
+    export OUTPUT_DIRECTORY="$OUTPUT_DIR"
 
     # Generate the index page
-cat > mainpage.h <<EOF
-/*! \\mainpage ${FRAMEWORK} Main Page
- *
+    pushd "${GeneratedHeadersDir}" >/dev/null 2>&1
+    cat > mainpage.h <<-EOF
+    /*! \\mainpage ${FRAMEWORK} Main Page
+     *
 EOF
-    cat < "../${INDEX_FILE}" >> mainpage.h
-cat >> mainpage.h <<EOF
-*/
+    if [[ ! -z "$INDEX_FILE" ]]; then
+        cat < "../${INDEX_FILE}" >> mainpage.h
+    fi
+    cat >> mainpage.h <<-EOF
+    */
 EOF
-    ${DOXYGEN} "${SCRIPT_PATH}/HTML.Doxyfile"
+
+    popd >/dev/null 2>&1
+    ${DOXYGEN} "${DOXYGEN_TEMPLATES_DIR}/DocSet.Doxyfile"
+    if [[ $? -eq 0 ]]; then
+        cd "${OUTPUT_DIRECTORY}" && make install
+    fi
 fi
 
 echo "Cleaning up..."
-cd ${SCRIPT_PATH}
-rm -rf ${TEMP_DIR}
+cd ${ScriptDir}
+if [[ ! -z "$TempDir" ]]; then
+    rm -rf ${TempDir}
+fi
 
 echo "Installed docset for ${FRAMEWORK} to ~/Library/Developer/Shared/Documentation/DocSets/${DOCSET_NAME}"

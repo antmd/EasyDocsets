@@ -24,7 +24,7 @@ ABBREVIATE_BRIEF       = "The $name class" \
                          a \
                          an \
                          the
-ALWAYS_DETAILED_SEC    = YES
+ALWAYS_DETAILED_SEC    = NO
 INLINE_INHERITED_MEMB  = NO
 FULL_PATH_NAMES        = NO
 STRIP_FROM_PATH        =
@@ -106,7 +106,7 @@ WARN_LOGFILE           =
 #---------------------------------------------------------------------------
 # configuration options related to the input files
 #---------------------------------------------------------------------------
-INPUT                  = .
+INPUT                  = $(INPUT_DIR) 
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.c \
                          *.cc \
@@ -142,8 +142,8 @@ USE_MDFILE_AS_MAINPAGE =
 SOURCE_BROWSER         = NO
 INLINE_SOURCES         = NO
 STRIP_CODE_COMMENTS    = YES
-REFERENCED_BY_RELATION = YES
-REFERENCES_RELATION    = YES
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
 REFERENCES_LINK_SOURCE = NO
 USE_HTAGS              = NO
 VERBATIM_HEADERS       = NO
@@ -159,7 +159,7 @@ IGNORE_PREFIX          =
 GENERATE_HTML          = YES
 HTML_OUTPUT            = $(OUTPUT_DIRECTORY)
 HTML_FILE_EXTENSION    = .html
-HTML_HEADER            =
+HTML_HEADER            = $(HTML_HEADER)
 HTML_FOOTER            =
 HTML_STYLESHEET        =
 HTML_EXTRA_STYLESHEET  =
@@ -168,7 +168,7 @@ HTML_COLORSTYLE_HUE    = 220
 HTML_COLORSTYLE_SAT    = 100
 HTML_COLORSTYLE_GAMMA  = 80
 HTML_TIMESTAMP         = NO
-HTML_DYNAMIC_SECTIONS  = YES
+HTML_DYNAMIC_SECTIONS  = NO
 HTML_INDEX_NUM_ENTRIES = 100
 GENERATE_DOCSET        = YES
 DOCSET_FEEDNAME        = $(FRAMEWORK)
@@ -310,7 +310,7 @@ PERL_PATH              = /usr/bin/perl
 CLASS_DIAGRAMS         = YES
 MSCGEN_PATH            =
 HIDE_UNDOC_RELATIONS   = YES
-HAVE_DOT               = YES
+HAVE_DOT               = $(HAVE_DOT)
 DOT_NUM_THREADS        = 0
 DOT_FONTNAME           = 
 DOT_FONTSIZE           = 10
@@ -329,10 +329,10 @@ GRAPHICAL_HIERARCHY    = YES
 DIRECTORY_GRAPH        = YES
 DOT_IMAGE_FORMAT       = png
 INTERACTIVE_SVG        = YES
-DOT_PATH               = /usr/local/bin
+DOT_PATH               = $(DOT_PATH)
 DOTFILE_DIRS           =
 MSCFILE_DIRS           =
-DOT_GRAPH_MAX_NODES    = 50
+DOT_GRAPH_MAX_NODES    = 100
 MAX_DOT_GRAPH_DEPTH    = 0
 DOT_TRANSPARENT        = NO
 DOT_MULTI_TARGETS      = YES
