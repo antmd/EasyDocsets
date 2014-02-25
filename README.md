@@ -33,11 +33,9 @@ This will install the docset in `~/Library/Developer/Shared/Documentation/DocSet
 
 ### Doxygen
 
-Doxygen output is customised by changing the 'DocSet.Doxygen' file in the 'doxygen-templates' sub-directory.
+The doxygen output draws nice inheritance and collaboration diagrams, but usually takes a lot longer to generate (minutes).
 
-The doxygen output draws nice inheritance and collaboration diagrams.
-
-Running doxygen usually takes a lot longer than AppleDoc, but it draws some useful relationship / inheritance pictures.
+By default, the output will include inheritance and collaboration graphs. If necessary, Doxygen output can be customised by changing the 'DocSet.Doxygen' file in the 'doxygen-templates' sub-directory, and the new format will be used for all further generated DocSets.
 
 Output will be installed as a DocSet
 
