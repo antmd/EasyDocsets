@@ -1,8 +1,6 @@
-TomDoc to Other Format Converter
+DocSet Generator plus TomDoc Converter
 ---
-A set of Python and shell scripts to generate appledoc and Doxygen from TomDoc commented code in C-like languages
-
-Only tested with Objective-C.
+A set of Python and shell scripts to generate appledoc and Doxygen docsets easily, including a TomDoc converter
 
     Usage :  ./generate_docs.sh -s <dir> -x <path> -f <name> -c <name> -d <name>
     Options: 
@@ -16,6 +14,10 @@ Only tested with Objective-C.
         -a            Turn on TomDoc conversion (e.g. for ReactiveCocoa). This can sometimes help for code that
                       hasn't been commented with special Documentation comments (/** */, ///, etc.)
 
+
+Generating the DocSet for a code-base can be a little tricky. For AppleDoc, you have to remember the long list of command-line options. For Doxygen, you need to edit a configuration file for each source tree to get the best results.
+
+These scripts make it easier to generate DocSets, given a few simple command-line options.
 
 ### Appledoc
 
@@ -31,11 +33,9 @@ This will install the docset in `~/Library/Developer/Shared/Documentation/DocSet
 
 ### Doxygen
 
-Doxygen output is customised by changing the 'DocSet.Doxygen' file in the 'doxygen-templates' sub-directory.
+The doxygen output draws nice inheritance and collaboration diagrams, but usually takes a lot longer to generate (minutes).
 
-The doxygen output draws nice inheritance and collaboration diagrams.
-
-Running doxygen usually takes a log longer than AppleDoc, but it draws some useful relationship / inheritance pictures.
+By default, the output will include inheritance and collaboration graphs. If necessary, Doxygen output can be customised by changing the 'DocSet.Doxygen' file in the 'doxygen-templates' sub-directory, and the new format will be used for all further generated DocSets.
 
 Output will be installed as a DocSet
 
