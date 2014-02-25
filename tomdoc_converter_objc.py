@@ -18,6 +18,7 @@ from optparse import OptionParser
 from glob import glob
 from os import path, makedirs
 from collections import OrderedDict
+from textwrap import dedent
 import re
 
 
@@ -106,7 +107,7 @@ class CommentBlock(object):
 
 class HeaderParser(object):
 
-    comment_line_regex = re.compile(r'^(?:/\*\*?|///?)\s*(.*)')
+    comment_line_regex = re.compile(r'^(?:/\*\*?|///?)(\s*)(.*)')
     interface_regex = \
         re.compile(r'^\s*@interface\s+(\w+(?:\s+:)|\w+\s*\(\w+\))')
     end_regex = re.compile(r'^\s*@end')
@@ -157,10 +158,9 @@ class HeaderParser(object):
             line = line.strip()
 
             matches = HeaderParser.comment_line_regex.match(line)
-            if matches or len(line) == 0 and self.state \
-                != OUTSIDE_COMMENT:
+            if matches or len(line) == 0 and self.state != OUTSIDE_COMMENT:
                 if matches:
-                    content = matches.group(1)
+                    leadng_spaces, content = matches.groups()
 
                 for case in switch(self.state):
                     if case(OUTSIDE_COMMENT, INSIDE_COMMENT):
@@ -206,6 +206,7 @@ class HeaderParser(object):
                             if not new_state:
                                 debug_log('>>>>Examples: {}'.format(content))
                                 self.comment.examples += '\n'
+                                self.comment.examples += leadng_spaces
                                 self.comment.examples += content
                             else:
                                 self.state = new_state
@@ -310,7 +311,7 @@ class DoxygenSourceCodeFormatter(SourceCodeFormatter):
             if comment.has_examples():
                 output += ' * \code\n'
                 output += '\n'.join([' * {}'.format(x) for x in
-                                    comment.examples.strip().split('\n'
+                                    comment.examples.strip('\n').split('\n'
                                     )])
                 output += '''
  * \endcode
@@ -376,8 +377,9 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
 '''.format(detail_section.strip())
             if comment.has_examples():
                 output += '\n'.join([' *\t{}'.format(x) for x in
-                                    comment.examples.strip().split('\n'
+                                    dedent(comment.examples.strip('\n')).split('\n'
                                     )])
+                output += '\n'
             if comment.has_params():
                 for (param_name, param_description) in \
                     comment.params.items():
