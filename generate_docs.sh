@@ -5,17 +5,16 @@
 set -o nounset                              # Treat unset variables as an error
 
 # Get the directory this script lives in, accounting for symlinks to the script
-function path_resolving_symlinks() {
-    if [ -L "$1" ]; then
-      pushd "$(dirname $1)/$(dirname $(readlink "$1"))" >/dev/null
-    else
-      pushd $(dirname "$1") >/dev/null
-    fi
-    echo $(pwd)
-    popd >/dev/null
+function realpath {
+    local r=$1; local t=$(readlink $r)
+    while [ $t ]; do
+        r=$(cd $(dirname $r) && cd $(dirname $t) && pwd -P)/$(basename $t)
+        t=$(readlink $r)
+    done
+    echo $r
 }
 
-ScriptDir=$(path_resolving_symlinks "$0")
+ScriptDir=$(dirname $(realpath "$0") )
 
 if [[ -d "${HOME}/Library/Caches" ]]; then
     BaseTempDir="${HOME}/Library/Caches"
@@ -124,7 +123,7 @@ fi
 GeneratedHeadersDir="${TempDir}/headers"
 mkdir -p "${GeneratedHeadersDir}"
 
-InputSourceDir=$(path_resolving_symlinks "$InputSourceDir")
+InputSourceDir=$(realpath "$InputSourceDir")
 if [[ $? -ne 0 ]]; then
     echo "Could not find source directory ${InputSourceDir}" >&2
     exit 1
@@ -173,6 +172,7 @@ fi
 # Generate documentation
 #===============================================================================
 
+echo "Input source directory = ${InputSourceDir}"
 
 if [[ "${OUTPUT_TYPE}" = "appledoc" ]]; then
     # As of 31 August, 2013, these extra flags to appledoc are only supported in the version of
