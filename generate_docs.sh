@@ -5,15 +5,17 @@
 set -o nounset                              # Treat unset variables as an error
 
 # Get the directory this script lives in, accounting for symlinks to the script
-if [ -L "$0" ]; then
-  pushd "$(dirname $0)/$(dirname $(readlink "$0"))" >/dev/null
-else
-  pushd $(dirname "$0") >/dev/null
-fi
-readonly ScriptDir=$(pwd)
-popd >/dev/null
+function path_resolving_symlinks() {
+    if [ -L "$1" ]; then
+      pushd "$(dirname $1)/$(dirname $(readlink "$1"))" >/dev/null
+    else
+      pushd $(dirname "$1") >/dev/null
+    fi
+    echo $(pwd)
+    popd >/dev/null
+}
 
-
+ScriptDir=$(path_resolving_symlinks "$0")
 
 if [[ -d "${HOME}/Library/Caches" ]]; then
     BaseTempDir="${HOME}/Library/Caches"
