@@ -4,30 +4,16 @@
 
 set -o nounset                              # Treat unset variables as an error
 
-path_resolving_symlinks()
-{ (
-    local _File="$@"; local _FileDir; local _NextDir; local _Link; local _LoopCount=0
-
-    until false; do
-        _FileDir=$(dirname "$_File")
-        cd -P "$_FileDir" || return 1
-        _File=$(basename "$_File")
-        _Link=$(readlink "$_File") || break
-        if [[ "$_Link" = "$_File" || $(( _LoopCount++ )) -gt 100 ]]; then
-            return 1 # Recursive Link
-        fi
-        _File="$_Link"
-    done
-    _File=$(pwd -P)/$(basename "$_File")
-    [ -e "$_File" ] || return 1
-    if [[ -d "$_File" ]] && pushd "$_File" >/dev/null ; then
-        _File=$(pwd -P)
-    fi
-    echo "$_File"
-) }
+# Get the directory this script lives in, accounting for symlinks to the script
+if [ -L "$0" ]; then
+  pushd "$(dirname $0)/$(dirname $(readlink "$0"))" >/dev/null
+else
+  pushd $(dirname "$0") >/dev/null
+fi
+readonly ScriptDir=$(pwd)
+popd >/dev/null
 
 
-ScriptDir=$(dirname $(path_resolving_symlinks "$0") )
 
 if [[ -d "${HOME}/Library/Caches" ]]; then
     BaseTempDir="${HOME}/Library/Caches"
