@@ -42,7 +42,7 @@ function usage ()
   -d <name>     The company id in the format 'com.dervishsoftware'
   -b <path>     Path to 'dot' for doxygen (default = dot binary found in path), or 'none' for no graphs
   -a            Turn on TomDoc conversion of the source
-  -t appledoc|doxygen  The output type (default = appledoc)
+  -t appledoc|doxygen[:<template>]  The output type (default = appledoc), 'doxygen' can take an optional template name after a colon
   -h            Display this message
 EOT
 }    # ----------  end of function usage  ----------
@@ -127,6 +127,17 @@ InputSourceDir=$(realpath "$InputSourceDir")
 if [[ $? -ne 0 ]]; then
     echo "Could not find source directory ${InputSourceDir}" >&2
     exit 1
+fi
+
+_IFS=$IFS; IFS=:
+set -- ${OUTPUT_TYPE}
+IFS=$_IFS
+OUTPUT_TYPE=$1
+OUTPUT_TEMPLATE=${2:-Docset}
+
+OUTPUT_DOCSET=1
+if [[ "$OUTPUT_TEMPLATE" != "Docset" ]]; then
+    OUTPUT_DOCSET=
 fi
 
 if [[ "${OUTPUT_TYPE}" != "appledoc" && "${OUTPUT_TYPE}" != "doxygen" ]]; then
@@ -254,16 +265,20 @@ EOF
 EOF
 
     popd >/dev/null 2>&1
-    ${DOXYGEN} "${DOXYGEN_TEMPLATES_DIR}/DocSet.Doxyfile"
-    if [[ $? -eq 0 ]]; then
+    ${DOXYGEN} "${DOXYGEN_TEMPLATES_DIR}/${OUTPUT_TEMPLATE}.Doxyfile"
+    if [[ $? -eq 0 && -n "$OUTPUT_DOCSET" ]]; then
         cd "${OUTPUT_DIRECTORY}" && make install
     fi
 fi
 
-echo "Cleaning up..."
-cd ${ScriptDir}
-if [[ ! -z "$TempDir" ]]; then
-    rm -rf ${TempDir}
-fi
 
-echo "Installed docset for ${FRAMEWORK} to ~/Library/Developer/Shared/Documentation/DocSets/${DOCSET_NAME}"
+if [[ -n "$OUTPUT_DOCSET" ]]; then
+    echo "Cleaning up..."
+    cd ${ScriptDir}
+    if [[ ! -z "$TempDir" ]]; then
+        rm -rf ${TempDir}
+    fi
+    echo "Installed docset for ${FRAMEWORK} to ~/Library/Developer/Shared/Documentation/DocSets/${DOCSET_NAME}"
+else
+    echo "Doxygen output is in directory ${OUTPUT_DIR}"
+fi

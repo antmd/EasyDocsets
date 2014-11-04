@@ -42,7 +42,7 @@ OPTIMIZE_OUTPUT_FOR_C  = NO
 OPTIMIZE_OUTPUT_JAVA   = NO
 OPTIMIZE_FOR_FORTRAN   = NO
 OPTIMIZE_OUTPUT_VHDL   = NO
-EXTENSION_MAPPING      =
+EXTENSION_MAPPING      = $(EXTENSION_MAPPING)
 MARKDOWN_SUPPORT       = YES
 AUTOLINK_SUPPORT       = YES
 BUILTIN_STL_SUPPORT    = NO
@@ -98,7 +98,7 @@ CITE_BIB_FILES         =
 #---------------------------------------------------------------------------
 QUIET                  = YES
 WARNINGS               = YES
-WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_UNDOCUMENTED   = NO
 WARN_IF_DOC_ERROR      = YES
 WARN_NO_PARAMDOC       = NO
 WARN_FORMAT            = "$file:$line: warning: $text"

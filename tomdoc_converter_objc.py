@@ -30,7 +30,6 @@ def debug_log(log_message):
 # From http://code.activeself.state.com/recipes/410692/
 
 class switch(object):
-
     def __init__(self, value):
         self.value = value
         self.fall = False
@@ -66,7 +65,6 @@ INSIDE_CLASS_DECL = 1
 
 
 class CommentBlock(object):
-
     def __init__(self):
         self.params = OrderedDict()
         self.brief = ''
@@ -93,7 +91,7 @@ class CommentBlock(object):
 
     def has_non_brief_content(self):
         return self.has_detail() or self.has_params() \
-            or self.has_examples() or self.has_return()
+               or self.has_examples() or self.has_return()
 
     def has_content(self):
         return self.has_brief() or self.has_non_brief_content()
@@ -106,7 +104,6 @@ class CommentBlock(object):
 
 
 class HeaderParser(object):
-
     comment_line_regex = re.compile(r'^(?:/\*\*?|///?)(\s*)(.*)')
     interface_regex = \
         re.compile(r'^\s*@interface\s+(\w+(?:\s+:)|\w+\s*\(\w+\))')
@@ -135,9 +132,9 @@ class HeaderParser(object):
             param_matches = HeaderParser.param_regex.match(content)
             if param_matches:
                 self.comment.set_current_param(param_matches.group(1),
-                        param_matches.group(2))
+                                               param_matches.group(2))
                 debug_log('>>>>Param: {} = {}'.format(self.comment.param_name,
-                          self.comment.param_description))
+                                                      self.comment.param_description))
                 new_state = PARAM_DESCRIPTION
             else:
                 if HeaderParser.examples_regex.match(content):
@@ -171,7 +168,7 @@ class HeaderParser(object):
                                 self.state = BRIEF_DESCRIPTION
                                 self.comment.brief = \
                                     ' '.join([self.comment.brief,
-                                        content])
+                                              content])
                             else:
                                 self.state = new_state
                         else:
@@ -221,7 +218,7 @@ class HeaderParser(object):
                                 debug_log('>>>>Param: {}'.format(content))
                                 self.comment.param_description = \
                                     ' '.join([self.comment.param_description,
-                                        content])
+                                              content])
                             else:
                                 self.state = new_state
                         else:
@@ -233,7 +230,7 @@ class HeaderParser(object):
                             debug_log('>>>>Return: {}'.format(content))
                             self.comment.return_description = \
                                 ' '.join([self.comment.return_description,
-                                    content])
+                                          content])
                         else:
                             self.state = DETAILED_DESCRIPTION
 
@@ -242,19 +239,20 @@ class HeaderParser(object):
                     saved_comment += '\n'
             else:
 
-                  # Not a comment line
+                # Not a comment line
 
                 if_matches = HeaderParser.interface_regex.match(line)
                 if if_matches:
                     self.outer_state = INSIDE_CLASS_DECL
                     if self.state == OUTSIDE_COMMENT:
-                        output_file_handle.write(source_code_formatter.single_line_comment('Documentation for {}'.format(if_matches.group(1))))
+                        output_file_handle.write(source_code_formatter.single_line_comment(
+                            'Documentation for {}'.format(if_matches.group(1))))
 
                 if self.state != OUTSIDE_COMMENT:
                     debug_log('Leaving comment')
 
                     if self.outer_state == INSIDE_CLASS_DECL \
-                        and self.comment.has_content():
+                            and self.comment.has_content():
 
                         # Process comment here
 
@@ -273,26 +271,24 @@ class HeaderParser(object):
                     self.state = OUTSIDE_COMMENT
 
                 if HeaderParser.end_regex.match(line) \
-                    and self.outer_state == INSIDE_CLASS_DECL:
+                        and self.outer_state == INSIDE_CLASS_DECL:
                     self.outer_state = OUTSIDE_CLASS_DECL
 
                 output_file_handle.write('{}\n'.format(line))
 
 
 class SourceCodeFormatter(object):
-
     def format_source(self, comment):
         pass
 
 
 class DoxygenSourceCodeFormatter(SourceCodeFormatter):
-
     def format_source(self, comment):
         output = None
         if not comment.has_brief() and comment.has_return():
             comment.brief = \
                 'Returns {}'.format(comment.return_description.split('.'
-                                    )[0])
+                )[0])
 
         if comment.has_brief():
             output = '//! {}'.format(comment.brief.strip())
@@ -311,19 +307,19 @@ class DoxygenSourceCodeFormatter(SourceCodeFormatter):
             if comment.has_examples():
                 output += ' * \code\n'
                 output += '\n'.join([' * {}'.format(x) for x in
-                                    comment.examples.strip('\n').split('\n'
-                                    )])
+                                     comment.examples.strip('\n').split('\n'
+                                     )])
                 output += '''
  * \endcode
 '''
             if comment.has_params():
                 for (param_name, param_description) in \
-                    comment.params.items():
+                        comment.params.items():
                     output += \
                         ''' *  \param {} {}
  *
 '''.format(param_name,
-                            param_description)
+           param_description)
             if comment.has_return():
                 output += \
                     ' *  \\return {}\n'.format(comment.return_description)
@@ -338,7 +334,6 @@ class DoxygenSourceCodeFormatter(SourceCodeFormatter):
 
 
 class AppledocSourceCodeFormatter(SourceCodeFormatter):
-
     selector_regex = re.compile(r'(\[[\w :+\-]+\])')
     class_regex = re.compile(r'(\s)(RAC\w+)\b')
 
@@ -354,7 +349,7 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
         if not comment.has_brief() and comment.has_return():
             comment.brief = \
                 'Returns {}'.format(comment.return_description.split('.'
-                                    )[0])
+                )[0])
 
         if comment.has_brief():
             output = \
@@ -369,7 +364,7 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
             if comment.has_detail():
                 detail_sections = \
                     self.add_crossrefs(comment.detail.strip()).split('\n'
-                        )
+                    )
                 for detail_section in detail_sections:
                     output += \
                         ''' *  {}
@@ -377,17 +372,17 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
 '''.format(detail_section.strip())
             if comment.has_examples():
                 output += '\n'.join([' *\t{}'.format(x) for x in
-                                    dedent(comment.examples.strip('\n')).split('\n'
-                                    )])
+                                     dedent(comment.examples.strip('\n')).split('\n'
+                                     )])
                 output += '\n'
             if comment.has_params():
                 for (param_name, param_description) in \
-                    comment.params.items():
+                        comment.params.items():
                     output += \
                         ''' *  \param {} {}
  *
 '''.format(param_name,
-                            self.add_crossrefs(param_description))
+           self.add_crossrefs(param_description))
             if comment.has_return():
                 output += \
                     ' *  \\return {}\n'.format(self.add_crossrefs(comment.return_description))
@@ -401,81 +396,42 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
         return '/** {} */\n'.format(content)
 
 
-def main():
-    parser = \
-        OptionParser(usage='usage: %prog [options] filenames|directory'
-                     , version='%prog 1.0')
-    parser.add_option(  # optional because action defaults to "store"
-        '-o',
-        '--outputdir',
-        action='store',
-        dest='outputdir',
-        default=None,
-        help='The directory to put output files',
-        )
-    parser.add_option(
-        '-a',
-        '--appledoc',
-        action='store_true',
-        dest='appledoc',
-        default=False,
-        help='Generate Appledoc output',
-        )
-    parser.add_option(
-        '-d',
-        '--doxygen',
-        action='store_true',
-        dest='doxygen',
-        default=False,
-        help='Generate Doxygen output',
-        )
-    parser.add_option(
-        '-v',
-        '--verbose',
-        action='store_true',
-        dest='verbose',
-        default=False,
-        help='Turn on verbose output',
-        )
-    (options, args) = parser.parse_args()
+class OutputGenerator:
+    appledoc = 0
+    doxygen = 1
 
+
+def generate(input_dirs, output_dir, generator=OutputGenerator.appledoc, verbose=False):
     use_stdin = False
     use_stdout = False
 
-    if len(args) == 0:
+    if len(input_dirs) == 0:
         use_stdin = True
 
-    if use_stdin and not options.outputdir or options.outputdir == '-':
+    if use_stdin and not output_dir or output_dir == '-':
         use_stdout = True
 
     if not use_stdin:
-        input_paths = [path.abspath(p) for p in args]
+        input_paths = [path.abspath(p) for p in input_dirs]
         if len(input_paths) > 1:
             common_prefix = path.commonprefix(*input_paths)
             common_prefix_len = len(common_prefix)
         else:
             common_prefix_len = len(input_paths[0]) \
-                - len(path.basename(input_paths[0]))
+                                - len(path.basename(input_paths[0]))
 
-        if options.outputdir:
-            output_dir = path.abspath(options.outputdir)
+        if output_dir:
+            output_dir = path.abspath(output_dir)
         else:
             output_dir = path.abspath('./formatted_headers')
 
-        if not options.appledoc and not options.doxygen:
-            print 'Must specify --appledoc or --doxygen'
-            parser.usage()
-            sys.exit(1)
-
-        if options.appledoc:
+        if generator == OutputGenerator.appledoc:
             source_code_formatter = AppledocSourceCodeFormatter()
         else:
             source_code_formatter = DoxygenSourceCodeFormatter()
 
         if not use_stdout and not path.exists(output_dir):
             makedirs(output_dir)
-
-        verbose = options.verbose
 
         for header_path in input_paths:
             if path.isdir(header_path):
@@ -496,26 +452,84 @@ def main():
 
                     with open(header_file, 'rU') as input_file_handle:
                         with open(output_file, 'w') as \
-                            output_file_handle:
+                                output_file_handle:
                             if verbose:
                                 print 'Converting {} --> {}'.format(header_file,
-                                        output_file)
+                                                                    output_file)
                             header_parser = \
                                 HeaderParser(input_file_handle,
-                                    path.basename(header_file))
+                                             path.basename(header_file))
                             header_parser.parse(output_file_handle,
-                                    source_code_formatter)
+                                                source_code_formatter)
                 else:
                     with open(header_file, 'rU') as input_file_handle:
                         header_parser = HeaderParser(input_file_handle,
-                                path.basename(header_file))
+                                                     path.basename(header_file))
                         header_parser.parse(sys.stdout,
-                                source_code_formatter)
+                                            source_code_formatter)
     else:
         header_parser = HeaderParser(sys.stdin)
         header_parser.parse(sys.stdout)
 
 
+def parse_args():
+    parser = \
+        OptionParser(usage='usage: %prog [options] filenames|directory'
+                     , version='%prog 1.0')
+    parser.add_option(  # optional because action defaults to "store"
+                        '-o',
+                        '--outputdir',
+                        action='store',
+                        dest='outputdir',
+                        default=None,
+                        help='The directory to put output files',
+    )
+    parser.add_option(
+        '-a',
+        '--appledoc',
+        action='store_true',
+        dest='appledoc',
+        default=False,
+        help='Generate Appledoc output',
+    )
+    parser.add_option(
+        '-d',
+        '--doxygen',
+        action='store_true',
+        dest='doxygen',
+        default=False,
+        help='Generate Doxygen output',
+    )
+    parser.add_option(
+        '-v',
+        '--verbose',
+        action='store_true',
+        dest='verbose',
+        default=False,
+        help='Turn on verbose output',
+    )
+    (options, args) = parser.parse_args()
+
+    output_dir = options.outputdir
+    if options.appledoc:
+        generator = OutputGenerator.appledoc
+    elif options.doxygen:
+        generator = OutputGenerator.doxygen
+    else:
+        print 'Must specify --appledoc or --doxygen'
+        parser.usage()
+        sys.exit(1)
+
+    verbose = options.verbose
+    return (args, output_dir, generator, verbose)
+
+
+"""
+--------------------------------------------------------------------------------
+MAIN
+--------------------------------------------------------------------------------
+"""
 if __name__ == '__main__':
-    main()
+    (input_dirs, output_dir, generator, verbose) = parse_args()
+    generate(input_dirs, output_dir, generator, verbose)
 
