@@ -48,6 +48,11 @@ def convert_tomdoc(input_dir, temp_dir, generator):
 
 
 
+def bool_str(truthy):
+    if truthy:
+        return 'YES'
+    else:
+        return 'NO'
 
 
 def generate_docs(doxygen_templates_dir, args):
@@ -74,15 +79,15 @@ def generate_docs(doxygen_templates_dir, args):
     docset_name = args.name
     docset_id = '.'.join([company_id, args.name])
 
-    src_dir = args.source
+    src_dir = args.srcdir
     index_path = args.index
     dot_path = args.dot_path
     generated_headers_dir = path.join(temp_dir, 'headers')
     output_dir = args.output
     if not output_dir:
         output_dir = path.join(temp_dir,'doc')
-    doxygen_template = path.extsep.join([args.format, 'Doxyfile'])
-    forced_language = args.language
+    doxygen_template = path.extsep.join([args.format, args.language, 'Doxyfile'])
+    source_browser_yn = bool_str(args.source)
 
     print('Docset =',docset_id)
 
@@ -123,13 +128,7 @@ def generate_docs(doxygen_templates_dir, args):
         putenv('DOCSET_BUNDLE_ID', docset_id)
         putenv('FRAMEWORK', docset_name)
         putenv('OUTPUT_DIRECTORY', output_dir)
-        if forced_language:
-            if forced_language == 'c++':
-                extension_mapping = 'h=c++ mm=c++ cc=c++ H=c++ hpp=c++'
-        else:
-            forced_language = ''
-
-        putenv('EXTENSION_MAPPING', forced_language)
+        putenv('SOURCE_BROWSER', source_browser_yn)
 
         """
     TODO
@@ -161,17 +160,19 @@ EOF
 
 def parse_args(doxygen_templates):
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('source', help='Directory containing the source header files', default = '.')
+    arg_parser.add_argument('srcdir', help='Directory containing the source header files', default = '.')
     arg_parser.add_argument('-o', '--output', help='Directory for the generated docs', nargs='?')
     arg_parser.add_argument('-i', '--index', help='Path to the index page', required=False)
     arg_parser.add_argument('-n', '--name', help='The name of the docset (appears on the doc pages)', required=True)
     arg_parser.add_argument('-c', '--company', help='The name of the company owning the source', required=False)
     arg_parser.add_argument('-d', '--company-id', help='The id of the company in reverse-DNS style', required=False)
-    arg_parser.add_argument('--dot-path', help='The path to "dot" for doxygen. Default is binary found on PATH.', required=False)
     arg_parser.add_argument('-t', '--tomdoc', help='Turn on TomDoc conversion of input files', action='store_true')
     arg_parser.add_argument('-g', '--generator', help='The output generator', choices=['appledoc', 'doxygen'], default='appledoc')
-    arg_parser.add_argument('-f', '--format', help='Choose an alternative doxygen template', choices=doxygen_templates, default='Docset', required=False)
-    arg_parser.add_argument('-l', '--language', help='Force the language', choices=['c++', 'objc', 'c'], required=False)
+    doxygen_group = arg_parser.add_argument_group('doxygen-only arguments', 'Options to customise doxygen output')
+    doxygen_group.add_argument('-f', '--format', help='Output format', choices=['docset', 'html'], default='docset', required=False)
+    doxygen_group.add_argument('-s', '--source', help='Include source browser', action='store_true', required=False)
+    doxygen_group.add_argument('-l', '--language', help='Force the language', choices=['c++', 'objc', 'all'], default='all', required=False)
+    doxygen_group.add_argument('--dot-path', help='The path to "dot" for doxygen. Default is binary found on PATH.', required=False)
 
 
 
