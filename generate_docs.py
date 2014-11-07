@@ -71,7 +71,8 @@ def generate_docs(doxygen_templates_dir, args):
     company_id=args.company_id
     if not company_id: company_id = '.'.join(['com', company_name])
 
-    docset_name = '.'.join([company_id, args.name, 'docset'])
+    docset_name = args.name
+    docset_id = '.'.join([company_id, args.name])
 
     src_dir = args.source
     index_path = args.index
@@ -83,7 +84,7 @@ def generate_docs(doxygen_templates_dir, args):
     doxygen_template = path.extsep.join([args.format, 'Doxyfile'])
     forced_language = args.language
 
-    print('Docset =',docset_name)
+    print('Docset =',docset_id)
 
     if args.tomdoc:
         print("Converting TomDoc headers in", src_dir)
@@ -119,8 +120,8 @@ def generate_docs(doxygen_templates_dir, args):
         putenv('HTML_HEADER','')
         putenv('DOCSET_PUBLISHER_ID', company_id)
         putenv('DOCSET_PUBLISHER', company_name)
-        putenv('DOCSET_BUNDLE_ID', docset_name)
-        putenv('FRAMEWORK','')
+        putenv('DOCSET_BUNDLE_ID', docset_id)
+        putenv('FRAMEWORK', docset_name)
         putenv('OUTPUT_DIRECTORY', output_dir)
         if forced_language:
             if forced_language == 'c++':
