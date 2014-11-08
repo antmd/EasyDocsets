@@ -82,7 +82,6 @@ def generate_docs(doxygen_templates_dir, args):
     src_dir = args.srcdir
     index_path = args.index
     dot_path = args.dot_path
-    generated_headers_dir = path.join(temp_dir, 'headers')
     output_dir = args.output
     if not output_dir:
         output_dir = path.join(temp_dir,'doc')
@@ -91,11 +90,16 @@ def generate_docs(doxygen_templates_dir, args):
 
     print('Docset =',docset_id)
 
+    """
+    Convert headers from Tomdoc, if required
+    """
     if args.tomdoc:
         print("Converting TomDoc headers in", src_dir)
         if (index_path):
             shutil.copy(index_path, temp_dir)
-        convert_tomdoc(src_dir, temp_dir, generator)
+        reformatted_headers_dir = path.join(temp_dir, 'reformatted_headers')
+        convert_tomdoc(src_dir, reformatted_headers_dir, generator)
+        src_dir = reformatted_headers_dir
 
     if generator == OutputGenerator.appledoc:
         """
@@ -121,7 +125,7 @@ def generate_docs(doxygen_templates_dir, args):
             putenv('HAVE_DOT', 'YES')
         else:
             putenv('HAVE_DOT', 'NO')
-        putenv('INPUT_DIR', '"{}" "{}"'.format(src_dir, generated_headers_dir))
+        putenv('INPUT_DIR', '"{}"'.format(src_dir))
         putenv('HTML_HEADER','')
         putenv('DOCSET_PUBLISHER_ID', company_id)
         putenv('DOCSET_PUBLISHER', company_name)

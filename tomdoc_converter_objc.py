@@ -103,7 +103,7 @@ class CommentBlock(object):
         self.param_name = name
 
 
-class HeaderParser(object):
+class ObjcHeaderParser(object):
     comment_line_regex = re.compile(r'^(?:/\*\*?|///?)(\s*)(.*)')
     interface_regex = \
         re.compile(r'^\s*@interface\s+(\w+(?:\s+:)|\w+\s*\(\w+\))')
@@ -121,7 +121,7 @@ class HeaderParser(object):
         self.comment = CommentBlock()
 
     def next_section(self, content):
-        return_matches = HeaderParser.return_regex.match(content)
+        return_matches = ObjcHeaderParser.return_regex.match(content)
         new_state = None
         if return_matches:
             self.comment.set_current_param()
@@ -129,7 +129,7 @@ class HeaderParser(object):
             self.comment.return_description = return_matches.group(1)
             new_state = RETURN_DESCRIPTION
         else:
-            param_matches = HeaderParser.param_regex.match(content)
+            param_matches = ObjcHeaderParser.param_regex.match(content)
             if param_matches:
                 self.comment.set_current_param(param_matches.group(1),
                                                param_matches.group(2))
@@ -137,7 +137,7 @@ class HeaderParser(object):
                                                       self.comment.param_description))
                 new_state = PARAM_DESCRIPTION
             else:
-                if HeaderParser.examples_regex.match(content):
+                if ObjcHeaderParser.examples_regex.match(content):
                     self.comment.detail += '''
 **Examples**
 '''
@@ -154,7 +154,7 @@ class HeaderParser(object):
         for line in self.input_file_handle:
             line = line.strip()
 
-            matches = HeaderParser.comment_line_regex.match(line)
+            matches = ObjcHeaderParser.comment_line_regex.match(line)
             if matches or len(line) == 0 and self.state != OUTSIDE_COMMENT:
                 if matches:
                     leadng_spaces, content = matches.groups()
@@ -186,7 +186,7 @@ class HeaderParser(object):
                             new_state = self.next_section(content)
                             if not new_state:
                                 debug_log('>>>>Detail: {}'.format(content))
-                                if HeaderParser.list_regex.match(content):
+                                if ObjcHeaderParser.list_regex.match(content):
                                     self.comment.detail += '\n'
                                 else:
                                     self.comment.detail += ' '
@@ -241,7 +241,7 @@ class HeaderParser(object):
 
                 # Not a comment line
 
-                if_matches = HeaderParser.interface_regex.match(line)
+                if_matches = ObjcHeaderParser.interface_regex.match(line)
                 if if_matches:
                     self.outer_state = INSIDE_CLASS_DECL
                     if self.state == OUTSIDE_COMMENT:
@@ -270,7 +270,7 @@ class HeaderParser(object):
                     saved_comment = ''
                     self.state = OUTSIDE_COMMENT
 
-                if HeaderParser.end_regex.match(line) \
+                if ObjcHeaderParser.end_regex.match(line) \
                         and self.outer_state == INSIDE_CLASS_DECL:
                     self.outer_state = OUTSIDE_CLASS_DECL
 
@@ -346,6 +346,7 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
 
     def format_source(self, comment):
         output = None
+
         if not comment.has_brief() and comment.has_return():
             comment.brief = \
                 'Returns {}'.format(comment.return_description.split('.'
@@ -358,6 +359,9 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
                 output += ' */'
 
         if comment.has_non_brief_content():
+            if not output:
+                output =  '/**'
+
             output += '''
  *
 '''
@@ -414,11 +418,9 @@ def generate(input_dirs, output_dir, generator=OutputGenerator.appledoc, verbose
     if not use_stdin:
         input_paths = [path.abspath(p) for p in input_dirs]
         if len(input_paths) > 1:
-            common_prefix = path.commonprefix(*input_paths)
-            common_prefix_len = len(common_prefix)
+            common_prefix = path.commonprefix(input_paths)
         else:
-            common_prefix_len = len(input_paths[0]) \
-                                - len(path.basename(input_paths[0]))
+            common_prefix = path.dirname(input_paths[0])
 
         if output_dir:
             output_dir = path.abspath(output_dir)
@@ -443,7 +445,7 @@ def generate(input_dirs, output_dir, generator=OutputGenerator.appledoc, verbose
                      and path.splitext(f)[1] == '.h']
 
             for header_file in files:
-                relative_path = header_file[common_prefix_len:]
+                relative_path = path.relpath(header_file,common_prefix)
                 if not use_stdout:
                     output_file = path.join(output_dir, relative_path)
                     write_dir = path.dirname(output_file)
@@ -457,18 +459,18 @@ def generate(input_dirs, output_dir, generator=OutputGenerator.appledoc, verbose
                                 print 'Converting {} --> {}'.format(header_file,
                                                                     output_file)
                             header_parser = \
-                                HeaderParser(input_file_handle,
+                                ObjcHeaderParser(input_file_handle,
                                              path.basename(header_file))
                             header_parser.parse(output_file_handle,
                                                 source_code_formatter)
                 else:
                     with open(header_file, 'rU') as input_file_handle:
-                        header_parser = HeaderParser(input_file_handle,
+                        header_parser = ObjcHeaderParser(input_file_handle,
                                                      path.basename(header_file))
                         header_parser.parse(sys.stdout,
                                             source_code_formatter)
     else:
-        header_parser = HeaderParser(sys.stdin)
+        header_parser = ObjcHeaderParser(sys.stdin)
         header_parser.parse(sys.stdout)
 
 
@@ -500,6 +502,14 @@ def parse_args():
         default=False,
         help='Generate Doxygen output',
     )
+    parser.add_option(
+        '-d',
+        '--doxygen',
+        action='store_true',
+        dest='doxygen',
+        default=False,
+        help='Generate Doxygen output',
+        )
     parser.add_option(
         '-v',
         '--verbose',
