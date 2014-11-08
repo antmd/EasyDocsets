@@ -11,7 +11,7 @@ import shutil
 import sys
 import tomdoc_converter_objc
 import subprocess
-from tomdoc_converter_objc import OutputGenerator
+from tomdoc_converter_objc import OutputGenerator, InputTranslator
 script_path = path.dirname(path.realpath(__file__))
 # Add 'Python' in the same directory as this script to sys.path
 sys.path.append(path.join(script_path, "Python"))
@@ -42,9 +42,9 @@ def which(program):
 doxygen_binary=which('doxygen')
 appledoc_binary=which('appledoc')
 
-def convert_tomdoc(input_dir, temp_dir, generator):
+def convert_tomdoc(input_dir, temp_dir, translator, generator):
     src_dirs = [x[0] for x in walk(input_dir)]
-    tomdoc_converter_objc.generate(src_dirs, temp_dir, generator, False)
+    tomdoc_converter_objc.generate(src_dirs, temp_dir, translator, generator, False)
 
 
 
@@ -93,13 +93,18 @@ def generate_docs(doxygen_templates_dir, args):
     """
     Convert headers from Tomdoc, if required
     """
-    if args.tomdoc:
-        print("Converting TomDoc headers in", src_dir)
+    if args.tomdoc or args.translate:
+        if args.tomdoc:
+            header_translator = InputTranslator.tomdoc
+        else:
+            header_translator = InputTranslator.simple
+        print("Converting headers in", src_dir)
         if (index_path):
             shutil.copy(index_path, temp_dir)
         reformatted_headers_dir = path.join(temp_dir, 'reformatted_headers')
-        convert_tomdoc(src_dir, reformatted_headers_dir, generator)
+        convert_tomdoc(src_dir, reformatted_headers_dir, header_translator, generator)
         src_dir = reformatted_headers_dir
+
 
     if generator == OutputGenerator.appledoc:
         """
@@ -159,7 +164,7 @@ EOF
 
 
     # Clean-up temporary directory
-    shutil.rmtree(temp_dir)
+    #shutil.rmtree(temp_dir)
 
 
 def parse_args(doxygen_templates):
@@ -171,6 +176,7 @@ def parse_args(doxygen_templates):
     arg_parser.add_argument('-c', '--company', help='The name of the company owning the source', required=False)
     arg_parser.add_argument('-d', '--company-id', help='The id of the company in reverse-DNS style', required=False)
     arg_parser.add_argument('-t', '--tomdoc', help='Turn on TomDoc conversion of input files', action='store_true')
+    arg_parser.add_argument('-x', '--translate', help='Simple conversion of non-doc comments to doc-comments', action='store_true')
     arg_parser.add_argument('-g', '--generator', help='The output generator', choices=['appledoc', 'doxygen'], default='appledoc')
     doxygen_group = arg_parser.add_argument_group('doxygen-only arguments', 'Options to customise doxygen output')
     doxygen_group.add_argument('-f', '--format', help='Output format', choices=['docset', 'html'], default='docset', required=False)

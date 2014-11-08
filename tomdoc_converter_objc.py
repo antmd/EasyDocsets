@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function;
 """
 Converts a set of Objective-C headers commented using TomDoc to headers documented using Doxygen or Appledoc
 """
@@ -24,7 +25,7 @@ import re
 
 def debug_log(log_message):
     if DEBUG:
-        print log_message
+        print(log_message, file=sys.stderr)
 
 
 # From http://code.activeself.state.com/recipes/410692/
@@ -103,6 +104,29 @@ class CommentBlock(object):
         self.param_name = name
 
 
+
+
+class TranslateHeaderParser(object):
+    comment_line_regex = re.compile(r'^\s{0,3}(?:/?\*\*?|//[^/]?)(\s*)(.*)')
+
+    def __init__(self, file_handle, header_name=None):
+        self.input_file_handle = file_handle
+        self.header_name = header_name
+
+    def parse(self, output_file_handle, source_code_formatter):
+        if self.header_name and verbose:
+            print('Parsing {}'.format(self.header_name))
+
+        for line in self.input_file_handle:
+            line = line.rstrip('\n')
+            matches = TranslateHeaderParser.comment_line_regex.match(line)
+            if matches:
+                leading_spaces, content = matches.groups()
+                print("///{}{}".format(leading_spaces,content), file=output_file_handle)
+            else:
+                print(line, file=output_file_handle)
+
+
 class ObjcHeaderParser(object):
     comment_line_regex = re.compile(r'^(?:/\*\*?|///?)(\s*)(.*)')
     interface_regex = \
@@ -148,7 +172,7 @@ class ObjcHeaderParser(object):
 
     def parse(self, output_file_handle, source_code_formatter):
         if self.header_name and verbose:
-            print 'Parsing {}'.format(self.header_name)
+            print('Parsing {}'.format(self.header_name))
 
         saved_comment = ''
         for line in self.input_file_handle:
@@ -157,7 +181,7 @@ class ObjcHeaderParser(object):
             matches = ObjcHeaderParser.comment_line_regex.match(line)
             if matches or len(line) == 0 and self.state != OUTSIDE_COMMENT:
                 if matches:
-                    leadng_spaces, content = matches.groups()
+                    leading_spaces, content = matches.groups()
 
                 for case in switch(self.state):
                     if case(OUTSIDE_COMMENT, INSIDE_COMMENT):
@@ -203,7 +227,7 @@ class ObjcHeaderParser(object):
                             if not new_state:
                                 debug_log('>>>>Examples: {}'.format(content))
                                 self.comment.examples += '\n'
-                                self.comment.examples += leadng_spaces
+                                self.comment.examples += leading_spaces
                                 self.comment.examples += content
                             else:
                                 self.state = new_state
@@ -326,7 +350,7 @@ class DoxygenSourceCodeFormatter(SourceCodeFormatter):
             output += ' */'
         output += '\n'
         if DEBUG:
-            print output
+            print(output)
         return output
 
     def single_line_comment(self, content):
@@ -393,19 +417,22 @@ class AppledocSourceCodeFormatter(SourceCodeFormatter):
             output += ' */'
         output += '\n'
         if DEBUG:
-            print output
+            print(output)
         return output
 
     def single_line_comment(self, content):
         return '/** {} */\n'.format(content)
 
+class InputTranslator:
+    tomdoc = 0
+    simple = 1
 
 class OutputGenerator:
     appledoc = 0
     doxygen = 1
 
 
-def generate(input_dirs, output_dir, generator=OutputGenerator.appledoc, verbose=False):
+def generate(input_dirs, output_dir, input_translator=InputTranslator.tomdoc, generator=OutputGenerator.appledoc, verbose=False):
     use_stdin = False
     use_stdout = False
 
@@ -456,11 +483,17 @@ def generate(input_dirs, output_dir, generator=OutputGenerator.appledoc, verbose
                         with open(output_file, 'w') as \
                                 output_file_handle:
                             if verbose:
-                                print 'Converting {} --> {}'.format(header_file,
-                                                                    output_file)
-                            header_parser = \
-                                ObjcHeaderParser(input_file_handle,
-                                             path.basename(header_file))
+                                print('Converting {} --> {}'.format(header_file,
+                                                                    output_file))
+                            if input_translator == InputTranslator.tomdoc:
+                                header_parser = \
+                                    ObjcHeaderParser(input_file_handle,
+                                                 path.basename(header_file))
+                            else:
+                                header_parser = \
+                                    TranslateHeaderParser(input_file_handle,
+                                                     path.basename(header_file))
+
                             header_parser.parse(output_file_handle,
                                                 source_code_formatter)
                 else:
@@ -526,7 +559,7 @@ def parse_args():
     elif options.doxygen:
         generator = OutputGenerator.doxygen
     else:
-        print 'Must specify --appledoc or --doxygen'
+        print('Must specify --appledoc or --doxygen')
         parser.usage()
         sys.exit(1)
 
