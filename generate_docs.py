@@ -21,6 +21,8 @@ import distutils
 from tempfile import mkdtemp
 from pprint import pprint as pp
 
+verbosity = 0
+
 def which(program):
     import os
     def is_exe(fpath):
@@ -93,6 +95,7 @@ def generate_docs(doxygen_templates_dir, args):
     """
     Convert headers from Tomdoc, if required
     """
+    index_file=None
     if args.tomdoc or args.translate:
         if args.tomdoc:
             header_translator = InputTranslator.tomdoc
@@ -101,16 +104,67 @@ def generate_docs(doxygen_templates_dir, args):
         print("Converting headers in", src_dir)
         if (index_path):
             shutil.copy(index_path, temp_dir)
+            index_file = path.abspath('../{}'.format(path.basename(index_path)))
         reformatted_headers_dir = path.join(temp_dir, 'reformatted_headers')
         convert_tomdoc(src_dir, reformatted_headers_dir, header_translator, generator)
         src_dir = reformatted_headers_dir
 
+    docset_feed_url = 'http://www.madeupname.com/docsets/'
 
     if generator == OutputGenerator.appledoc:
         """
         Appledoc
         """
         print("Generating appledoc in",temp_dir)
+
+        # As of 31 August, 2013, these extra flags to appledoc are only supported in the version of
+        # appledoc available here: https://github.com/antmd/appledoc:
+        # --ignore-symbol <glob>
+        # --require-leader-for-local-crossrefs
+        # A pull request to the parent repository has been made
+
+        appledoc_extra_flags=[]
+        if subprocess.check_call("{} --help | grep 'ignore-symbol' >/dev/null".format(appledoc_binary), shell=True):
+            appledoc_extra_flags += ['--ignore-symbol', '*Deprecated*']
+        if subprocess.check_call('{} --help | grep "require-leader-for-local-crossrefs" >/dev/null'.format(appledoc_binary), shell=True):
+            appledoc_extra_flags += ['--require-leader-for-local-crossrefs']
+
+        appledoc_standard_options = [
+            '--project-name',                 docset_name,
+            '--project-company',              company_name,
+            '--company-id',                   company_id,
+            '--docset-atom-filename',         '{}.atom'.format(docset_name),
+            '--docset-feed-url',              '{}/%DOCSETATOMFILENAME'.format(docset_feed_url),
+            '--docset-package-url',           '{}/%DOCSETPACKAGEFILENAME'.format(docset_feed_url),
+            '--docset-fallback-url',          docset_feed_url,
+            '--docset-bundle-filename',       '.'.join([docset_id,'docset']),
+            '--output',                       output_dir,
+            '--logformat',                    'xcode' ,
+            '--ignore',                       '*.m' ,
+            '--ignore',                       '*Deprecated*' ,
+            '--verbose',                      str(verbosity),
+            '--keep-undocumented-objects',
+            '--keep-undocumented-members',
+            '--keep-intermediate-files',
+            '--no-repeat-first-par',
+            '--no-warn-invalid-crossref',
+            '--install-docset'
+        ]
+        if index_file:
+            appledoc_standard_options += ['--index-desc', index_file]
+        appledoc_cmd = [appledoc_binary] + appledoc_standard_options + appledoc_extra_flags + [src_dir]
+        #print("Running : {}".format(' '.join(appledoc_cmd)))
+        try:
+            subprocess.check_call(appledoc_cmd)
+        except subprocess.CalledProcessError as ex:
+            """
+            print('Appledoc failed to generate the documentation')
+            return False
+            """
+            # Looks like Appledoc returns non-zero code, even if successful
+            pass
+
+
     elif generator == OutputGenerator.doxygen:
         """
         Doxygen
@@ -161,6 +215,9 @@ EOF
             subprocess.check_call("cd {} && make install".format(output_dir), shell=True)
         except subprocess.CalledProcessError as e:
             print("Doxygen failed with error".format(e), file=sys.stderr)
+            return False
+
+    return True
 
 
     # Clean-up temporary directory
@@ -198,5 +255,9 @@ if __name__ == '__main__':
     doxygen_templates_dir = path.join(script_path,'doxygen-templates')
     doxygen_templates = get_doxygen_templates(doxygen_templates_dir)
     args = parse_args(doxygen_templates)
-    generate_docs(doxygen_templates_dir, args)
+
+    result = generate_docs(doxygen_templates_dir, args)
+
+    if result:
+        print("Docset was successfully generated and installed!")
 
